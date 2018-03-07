@@ -45,8 +45,7 @@ file_path = 'data/data_by_asset_keys/'
 file_name = '4.csv'
 df_list = divise_asset_by_time(file_path+file_name)
 """
-def divise_asset_by_time(file_full_path,interval):
-    df_asset = pd.read_csv(file_full_path)
+def divise_asset_by_time(df_asset,interval):
     df_list = []
     count_data = len(df_asset)
     
@@ -377,3 +376,71 @@ def generate_speed_info_original_data(df_asset):
                     else:
                         df_asset.loc[i,"average_speed"] = str(interval_value/interval_time*3.6)
     return df_asset 
+
+def generate_speed_info_original_data(df_asset,interval_time_set):
+    average_speed = "average_speed"+"_"+str(interval_time_set)
+    df_asset[average_speed]=" "
+    for i in range(len(df_asset)-1):
+        current_data   = df_asset.iloc[i]
+        current_meter  = current_data["ODO_FULL_METER"]
+        current_time   = time.mktime( datetime.datetime.strptime(current_data["recorded_at"], "%Y-%m-%dT%H:%M:%SZ").timetuple() ) 
+        key = "ODO_FULL_METER"
+        
+        if df_asset.loc[i,average_speed] != " " and df_asset.loc[i+1,average_speed] != " ":
+            continue
+        
+        if current_meter != " ":
+            next_valide_index = None
+            next_valide_time  = None
+            next_valide_value = None
+            for k in range(i+1,len(df_asset)):
+                if df_asset.iloc[k][key] != ' ' :
+                    next_valide_time  = datetime_to_int(df_asset.iloc[k]['recorded_at'])
+                    
+                    if interval_time_set<= (next_valide_time-current_time):
+                        next_valide_index = k
+                        next_valide_value = df_asset.iloc[k][key]
+                        break
+                        
+            try:
+                interval_time  = next_valide_time - current_time 
+                interval_value = int(next_valide_value) - int(current_meter)
+            except:
+                print(k)
+            
+            
+            if interval_time<=125:
+                for j in range(i+1,k+1):
+                    df_asset.loc[j,average_speed] = str(interval_value/interval_time*3.6)
+                    
+    return df_asset
+
+
+def choose_blank_row_to_delete(df_asset):
+    row_list = []
+    for i in range(len(df_asset)-1):
+        current_data   = df_asset.iloc[i]  
+        current_speed = current_data["average_speed"]
+        current_meter = current_data["ODO_FULL_METER"]
+        current_fuel  = current_data["MDI_OBD_FUEL"]
+        if current_meter ==" " and current_fuel==" " and current_speed !=" ":
+            next_data  = df_asset.iloc[i+1]
+            next_speed = current_data["average_speed"]
+            next_meter = current_data["ODO_FULL_METER"]
+            
+            if next_speed==current_speed :
+                row_list.append(i)
+                    
+    df_asset = df_asset.drop(df_asset.index[row_list])
+    return df_asset
+
+def delete_blank_row(df_asset):
+    row_list = []
+    for i in range(len(df_asset)):
+        current_data   = df_asset.iloc[i]     
+        if current_data["MDI_OBD_FUEL"] ==" " and current_data["ODO_FULL_METER"]==" ":
+            row_list.append(i)
+            
+    df_asset = df_asset.drop(df_asset.index[row_list])
+    return df_asset
+
